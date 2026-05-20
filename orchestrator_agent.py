@@ -8,6 +8,15 @@ client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 MODEL = "compound-beta"  # Built-in web search included
 
 
+MAX_CONTEXT_CHARS = 6000  # Limit passed context to avoid 413 errors
+
+
+def truncate(text: str, max_chars: int = MAX_CONTEXT_CHARS) -> str:
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars] + "\n\n[Truncated for context length]"
+
+
 def run_agent(system_prompt: str, user_message: str) -> str:
     response = client.chat.completions.create(
         model=MODEL,
@@ -15,7 +24,7 @@ def run_agent(system_prompt: str, user_message: str) -> str:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message},
         ],
-        max_tokens=4096,
+        max_tokens=2048,
     )
     return response.choices[0].message.content.strip()
 
@@ -53,7 +62,7 @@ def options_agent(user_input: str, problem: str) -> str:
     )
     user_message = (
         f"User's original message:\n{user_input}\n\n"
-        f"Problem analysis:\n{problem}"
+        f"Problem analysis:\n{truncate(problem)}"
     )
     return run_agent(system, user_message)
 
@@ -76,8 +85,8 @@ def risks_agent(user_input: str, problem: str, options: str) -> str:
     )
     user_message = (
         f"User's original message:\n{user_input}\n\n"
-        f"Problem analysis:\n{problem}\n\n"
-        f"Options:\n{options}"
+        f"Problem analysis:\n{truncate(problem)}\n\n"
+        f"Options:\n{truncate(options)}"
     )
     return run_agent(system, user_message)
 
@@ -101,9 +110,9 @@ def recommendation_agent(user_input: str, problem: str, options: str, risks: str
     )
     user_message = (
         f"User's original message:\n{user_input}\n\n"
-        f"Problem analysis:\n{problem}\n\n"
-        f"Options:\n{options}\n\n"
-        f"Risks:\n{risks}"
+        f"Problem analysis:\n{truncate(problem)}\n\n"
+        f"Options:\n{truncate(options)}\n\n"
+        f"Risks:\n{truncate(risks)}"
     )
     return run_agent(system, user_message)
 
