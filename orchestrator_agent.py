@@ -5,10 +5,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-MODEL = "compound-beta"  # Built-in web search included
+MODEL = "llama-3.3-70b-versatile"
 
-
-MAX_CONTEXT_CHARS = 6000  # Limit passed context to avoid 413 errors
+MAX_CONTEXT_CHARS = 3000  # Limit passed context to avoid 413 errors
 
 
 def truncate(text: str, max_chars: int = MAX_CONTEXT_CHARS) -> str:
@@ -24,7 +23,7 @@ def run_agent(system_prompt: str, user_message: str) -> str:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message},
         ],
-        max_tokens=2048,
+        max_tokens=1024,
     )
     return response.choices[0].message.content.strip()
 
