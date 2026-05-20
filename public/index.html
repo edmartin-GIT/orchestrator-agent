@@ -323,6 +323,45 @@
       color: #ff6b6b;
     }
 
+    /* ── Export bar ── */
+    .export-bar {
+      display: none;
+      margin-top: 3rem;
+      padding: 1.25rem 1.5rem;
+      border: 1px solid var(--border-hi);
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .export-bar.visible { display: flex; }
+
+    .export-label {
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+    }
+
+    .export-buttons { display: flex; gap: 0.75rem; }
+
+    .export-btn {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border-hi);
+      padding: 0.5rem 1.25rem;
+      font-family: var(--sans);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .export-btn:hover { background: var(--text); color: var(--bg); }
+    .export-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
     /* ── Footer ── */
     footer {
       border-top: 1px solid var(--border);
@@ -378,6 +417,14 @@
   <hr class="divider" id="resultsDivider" style="display:none" />
 
   <div class="stages" id="stagesContainer" style="display:none"></div>
+
+  <div class="export-bar" id="exportBar">
+    <span class="export-label">Executive Brief ready</span>
+    <div class="export-buttons">
+      <button class="export-btn" id="pdfBtn" onclick="downloadExport('pdf')">↓ Download PDF</button>
+      <button class="export-btn" id="docxBtn" onclick="downloadExport('docx')">↓ Download Word</button>
+    </div>
+  </div>
 </main>
 
 <footer>
@@ -395,6 +442,8 @@
 
   let timerInterval = null;
   let startTime = null;
+  let currentQuery = '';
+  const results = { problem: '', options: '', risks: '', recommendation: '' };
 
   marked.setOptions({ breaks: true, gfm: true });
 
@@ -452,6 +501,9 @@
   async function runAnalysis() {
     const query = document.getElementById('queryInput').value.trim();
     if (!query) return;
+    currentQuery = query;
+    results.problem = results.options = results.risks = results.recommendation = '';
+    document.getElementById('exportBar').classList.remove('visible');
 
     const btn = document.getElementById('analyzeBtn');
     const errorBanner = document.getElementById('errorBanner');
@@ -515,10 +567,12 @@
     } else if (data.event === 'stage_complete') {
       setStageState(data.stage, 'complete');
       document.getElementById(`body-${data.stage}`).innerHTML = marked.parse(data.content || '');
+      if (data.stage in results) results[data.stage] = data.content || '';
 
     } else if (data.event === 'done') {
       setStatus('Complete', 'done');
       stopTimer();
+      document.getElementById('exportBar').classList.add('visible');
 
     } else if (data.event === 'error') {
       const errorBanner = document.getElementById('errorBanner');
@@ -526,6 +580,35 @@
       errorBanner.style.display = 'block';
       setStatus('Error', 'idle');
       stopTimer();
+    }
+  }
+
+  async function downloadExport(format) {
+    const btn = document.getElementById(format === 'pdf' ? 'pdfBtn' : 'docxBtn');
+    btn.disabled = true;
+    btn.textContent = 'Generating…';
+
+    try {
+      const response = await fetch(`/export/${format}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: currentQuery, ...results }),
+      });
+
+      if (!response.ok) throw new Error('Export failed');
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `executive-brief.${format === 'pdf' ? 'pdf' : 'docx'}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(`Export error: ${err.message}`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = format === 'pdf' ? '↓ Download PDF' : '↓ Download Word';
     }
   }
 

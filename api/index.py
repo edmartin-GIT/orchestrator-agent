@@ -1,17 +1,10 @@
 import sys
 import os
 
-# Make the project root importable from inside api/
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import json
-import asyncio
-from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-
-from orchestrator_agent import problem_agent, options_agent, risks_agent, recommendation_agent
+# Re-export everything from app.py so Vercel uses the same logic
+from app import app, handler  # noqa: F401
 
 app = FastAPI(title="ORQ Agent")
 
