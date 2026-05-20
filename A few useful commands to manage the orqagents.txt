@@ -1,0 +1,12 @@
+A few useful commands to manage the app going forward:
+
+# Restart the app
+docker compose restart orqagent
+
+# View app logs
+docker logs root-orqagent-1 --follow
+
+# Update after pushing new code to GitHub
+cd /var/www/orqagent
+git pull
+docker compose up -d --build orqagent

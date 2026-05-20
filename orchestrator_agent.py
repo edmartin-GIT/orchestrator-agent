@@ -1,52 +1,30 @@
 import os
-import anthropic
+from groq import Groq
 from dotenv import load_dotenv
 
 load_dotenv()
 
-client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-MODEL = "claude-opus-4-7"
-
-
-TOOLS = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}]
+client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+MODEL = "compound-beta"  # Built-in web search included
 
 
 def run_agent(system_prompt: str, user_message: str) -> str:
-    messages = [{"role": "user", "content": user_message}]
-    response = None
-
-    for _ in range(10):
-        response = client.messages.create(
-            model=MODEL,
-            max_tokens=4096,
-            thinking={"type": "adaptive"},
-            system=[
-                {
-                    "type": "text",
-                    "text": system_prompt,
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ],
-            tools=TOOLS,
-            messages=messages,
-        )
-
-        if response.stop_reason != "tool_use":
-            break
-
-        # Append assistant turn; Anthropic executes web_search server-side
-        # and injects results automatically on the next request.
-        messages.append({"role": "assistant", "content": response.content})
-
-    text_blocks = [b.text for b in response.content if hasattr(b, "type") and b.type == "text"]
-    return "\n".join(text_blocks).strip()
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ],
+        max_tokens=4096,
+    )
+    return response.choices[0].message.content.strip()
 
 
 def problem_agent(user_input: str) -> str:
     system = (
-        "You are the Problem Agent. You must ALWAYS call the Claude Search tool if available.\n\n"
+        "You are the Problem Agent. You must ALWAYS use web search.\n\n"
         "Process:\n"
-        "1. Call Claude Search using the user's question.\n"
+        "1. Search the web using the user's question.\n"
         "2. Use ONLY search results + the user's text to define the problem clearly.\n\n"
         "Rules:\n"
         "* Do not guess or assume anything outside search evidence or user text.\n"
@@ -59,9 +37,9 @@ def problem_agent(user_input: str) -> str:
 
 def options_agent(user_input: str, problem: str) -> str:
     system = (
-        "You are the Options Agent. You must ALWAYS call the Claude Search tool if available.\n\n"
+        "You are the Options Agent. You must ALWAYS use web search.\n\n"
         "Process:\n"
-        "1. Call Claude Search using the user's question.\n"
+        "1. Search the web using the user's question.\n"
         "2. Combine:\n"
         "   * Search results\n"
         "   * Problem definition\n"
@@ -82,9 +60,9 @@ def options_agent(user_input: str, problem: str) -> str:
 
 def risks_agent(user_input: str, problem: str, options: str) -> str:
     system = (
-        "You are the Risks Agent. You must ALWAYS call the Claude Search tool if available.\n\n"
+        "You are the Risks Agent. You must ALWAYS use web search.\n\n"
         "Process:\n"
-        "1. Call Claude Search using the user's question.\n"
+        "1. Search the web using the user's question.\n"
         "2. Combine:\n"
         "   * Search results\n"
         "   * Problem output\n"
@@ -106,9 +84,9 @@ def risks_agent(user_input: str, problem: str, options: str) -> str:
 
 def recommendation_agent(user_input: str, problem: str, options: str, risks: str) -> str:
     system = (
-        "You are the Recommendation Agent. You must ALWAYS call the Claude Search tool if available.\n\n"
+        "You are the Recommendation Agent. You must ALWAYS use web search.\n\n"
         "Process:\n"
-        "1. Call Claude Search using the user's question.\n"
+        "1. Search the web using the user's question.\n"
         "2. Combine:\n"
         "   * Search results\n"
         "   * Problem\n"
@@ -119,7 +97,7 @@ def recommendation_agent(user_input: str, problem: str, options: str, risks: str
         "* No new facts. No assumptions. No fabrication.\n"
         "* Recommendation must be explicitly based on the previous outputs.\n"
         "* If the evidence is unclear, mention limitations.\n\n"
-        "Output: A grounded and practical recommendation well formatted with clear explanations and in a PDF format."
+        "Output: A grounded and practical recommendation well formatted with clear explanations."
     )
     user_message = (
         f"User's original message:\n{user_input}\n\n"
